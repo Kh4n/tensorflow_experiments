@@ -149,7 +149,7 @@ class MotionTrackingLK(tf.keras.layers.Layer):
         ATb = tf.matmul(A, b, transpose_a=True)
 
         VxVy = tf.matmul(ATA_1, ATb)
-        
+
         return VxVy
 
     def iterative_LK(self, sampler, frames, iterations):
@@ -168,7 +168,6 @@ class MotionTrackingLK(tf.keras.layers.Layer):
             out = self.sample_ntracks_from_2frames(sampler, frames)
 
             VxVy = self.calc_velocity_2frames_ntracks_LK(first_frame, out[:, 1])*factor
-            tf.print(VxVy)
 
             sampler += VxVy 
             i += 1
@@ -185,7 +184,7 @@ class MotionTrackingLK(tf.keras.layers.Layer):
         seq_len = tf.shape(imgs)[1]
 
         sampler = tf.reshape(self.sampling_grid, [1, 1, 2, -1]) + init_track_locs
-        first_frame = self.sample_ntracks_from_2frames(sampler, imgs[:, 0:2])[:, 0]
+        # first_frame = self.sample_ntracks_from_2frames(sampler, imgs[:, 0:2])[:, 0]
         sampler, tot_VxVy = self.iterative_LK(sampler, imgs[:, 0:2], self.iterations)
         tot_VxVy = tf.concat([tf.reshape(inputs[0], [-1, self.num_tracks, 2, 1]), tot_VxVy], axis=2)
 
@@ -201,12 +200,12 @@ class MotionTrackingLK(tf.keras.layers.Layer):
             cond, iterate, [i, sampler, imgs, tot_VxVy],
             shape_invariants=[i.get_shape(), sampler.get_shape(), imgs.get_shape(), tf.TensorShape([None, self.num_tracks, None, 1])]
         )
-        tracked = self.sample_ntracks_from_2frames(sampler, imgs[:, seq_len-2:seq_len])[:, 1]
+        # tracked = self.sample_ntracks_from_2frames(sampler, imgs[:, seq_len-2:seq_len])[:, 1]
         tot_VxVy = tf.reshape(tot_VxVy, [-1, self.num_tracks, seq_len, 2])
         tot_VxVy.set_shape([None, self.num_tracks, 5, 2])
         # tf.print(tot_VxVy)
-        return tf.stack([first_frame, tracked], axis=1)
-        # return tot_VxVy
+        # return tf.stack([first_frame, tracked], axis=1)
+        return tot_VxVy
   
     def compute_output_shape(self, input_shape):
         seq_len = input_shape[1][1]
