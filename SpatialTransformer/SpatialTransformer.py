@@ -8,9 +8,14 @@ class SpatialTransformer(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         # grab the dimensions of the image here so we can use them later. also will throw errors early for users
-        self.h = input_shape[1][1]
-        self.w = input_shape[1][2]
-        self.c = input_shape[1][3]
+        if self.seq_len:
+            self.h = input_shape[1][1+1]
+            self.w = input_shape[1][2+1]
+            self.c = input_shape[1][3+1]
+        else:
+            self.h = input_shape[1][1]
+            self.w = input_shape[1][2]
+            self.c = input_shape[1][3]
 
         if self.seq_len:
             self.out_shape = [-1, self.seq_len, self.h, self.w, self.c]
@@ -29,6 +34,7 @@ class SpatialTransformer(tf.keras.layers.Layer):
         )
         self.sampling_grid = tf.stack([tf.reshape(x_t, [self.h*self.w]), tf.reshape(y_t, [self.h*self.w]), tf.ones(self.h*self.w, tf.float32)])
 
+        self.seq_len = self.seq_len if self.seq_len else 1
         super(SpatialTransformer, self).build(input_shape)
   
     def call(self, inputs):
@@ -38,6 +44,8 @@ class SpatialTransformer(tf.keras.layers.Layer):
         # -1 as reshape automatically infers batch dimension
         transforms = tf.reshape(local, [-1, 2, 3])
         samples = tf.matmul(transforms, self.sampling_grid)
+
+        samples = tf.tile(samples, [self.seq_len, 1, 1])
 
         # have to adjust to the relative scaling done earlier
         x = ((samples[:, 0] + self.w/self.max_hw) * self.max_hw) * 0.5
@@ -67,11 +75,12 @@ class SpatialTransformer(tf.keras.layers.Layer):
         Ib = tf.gather_nd(imgs, tf.stack([y0, x1], axis=-1), batch_dims=1)
         Ic = tf.gather_nd(imgs, tf.stack([y1, x0], axis=-1), batch_dims=1)
         Id = tf.gather_nd(imgs, tf.stack([y1, x1], axis=-1), batch_dims=1)
-        a = tf.stack([y0, x0], axis=-1)
-        print(tf.shape(y0))
-        print(tf.shape(a))
-        print(tf.shape(wa))
-        print(tf.shape(Ia))
+
+        # a = tf.stack([y0, x0], axis=-1)
+        # print(tf.shape(y0))
+        # print(tf.shape(a))
+        # print(tf.shape(wa))
+        # print(tf.shape(Ia))
 
         out = tf.reshape(wa*Ia + wb*Ib + wc*Ic + wd*Id, self.out_shape)
         return out
